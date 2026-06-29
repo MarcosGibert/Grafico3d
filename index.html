@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Generador · Gráfico 3D Incidencias</title>
+  <style>
+    /* ── Tokens ───────────────────────────────────────────────── */
+    :root {
+      --navy:    #2a3f5f;
+      --navy-lt: #3d5a87;
+      --p4:      #E84620;
+      --p4-lt:   #f26245;
+      --bg:      #F7F7F9;
+      --bg2:     #eeeef3;
+      --border:  #d4d5de;
+      --text:    #2a3f5f;
+      --muted:   #6b7694;
+      --white:   #ffffff;
+      --radius:  10px;
+      --shadow:  0 4px 24px rgba(42,63,95,.10);
+    }
+
+    /* ── Reset ────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ───────────────────────────────────────────────── */
+    header {
+      background: var(--navy);
+      color: var(--white);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border-bottom: 3px solid var(--p4);
+    }
+    .logo-block {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: var(--p4);
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-icon svg { fill: white; }
+    header h1 {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: .01em;
+    }
+    header p {
+      font-size: 12px;
+      opacity: .65;
+      margin-top: 2px;
+    }
+
+    /* ── Main layout ──────────────────────────────────────────── */
+    main {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 16px 60px;
+    }
+    .card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      width: 100%;
+      max-width: 560px;
+      padding: 36px 36px 32px;
+    }
+
+    /* ── Config strip (URL backend) ───────────────────────────── */
+    .config-strip {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 10px 14px;
+      margin-bottom: 28px;
+      font-size: 12px;
+    }
+    .config-strip label {
+      font-weight: 600;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      font-size: 10.5px;
+    }
+    .url-row {
+      display: flex;
+      gap: 6px;
+    }
+    .config-strip input[type=url] {
+      flex: 1;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 5px 9px;
+      font-size: 12px;
+      color: var(--text);
+      background: var(--white);
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+    }
+    .config-strip input[type=url]:focus { outline: 2px solid var(--navy-lt); }
+    .btn-ping {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 5px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      color: var(--muted);
+      white-space: nowrap;
+      transition: background .15s, color .15s;
+    }
+    .btn-ping:hover { background: var(--bg2); color: var(--navy); }
+    #pingStatus {
+      font-size: 11px;
+      margin-top: 5px;
+      color: var(--muted);
+      min-height: 16px;
+    }
+    #pingStatus.ok  { color: #2e7d32; }
+    #pingStatus.err { color: var(--p4); }
+
+    /* ── Drop zone ────────────────────────────────────────────── */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 38px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .drop-zone:hover,
+    .drop-zone.drag-over {
+      border-color: var(--navy-lt);
+      background: #f0f3f8;
+    }
+    .drop-zone.has-file {
+      border-color: var(--navy);
+      border-style: solid;
+      background: #f0f3f8;
+    }
+    .drop-zone input[type=file] {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-icon {
+      width: 48px; height: 48px;
+      margin: 0 auto 14px;
+      background: var(--bg);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border);
+      transition: background .2s;
+    }
+    .drop-icon svg { fill: var(--muted); }
+    .drop-zone:hover .drop-icon,
+    .drop-zone.has-file .drop-icon { background: #dce4f0; }
+    .drop-zone:hover .drop-icon svg,
+    .drop-zone.has-file .drop-icon svg { fill: var(--navy); }
+    .drop-title {
+      font-weight: 600;
+      font-size: 14.5px;
+      margin-bottom: 5px;
+    }
+    .drop-sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .file-name {
+      margin-top: 10px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--navy);
+      word-break: break-all;
+    }
+
+    /* ── Requisitos ───────────────────────────────────────────── */
+    .req-box {
+      margin-top: 16px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 11px 14px;
+      font-size: 11.5px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    .req-box b { color: var(--text); }
+
+    /* ── Botón generar ────────────────────────────────────────── */
+    .btn-gen {
+      margin-top: 22px;
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--navy);
+      color: var(--white);
+      border: none;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, opacity .15s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-gen:hover:not(:disabled) { background: var(--navy-lt); }
+    .btn-gen:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-gen .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+    .btn-gen.loading .spinner { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Estado / feedback ────────────────────────────────────── */
+    #feedback {
+      margin-top: 18px;
+      border-radius: 7px;
+      padding: 12px 14px;
+      font-size: 12.5px;
+      line-height: 1.5;
+      display: none;
+    }
+    #feedback.info    { background:#EBF1FB; color:#1a3a6b; border:1px solid #b8cef0; }
+    #feedback.success { background:#E8F5E9; color:#1b5e20; border:1px solid #a5d6a7; }
+    #feedback.error   { background:#FDE8E3; color:#7d1c0c; border:1px solid #f5b8a8; }
+    #feedback .fb-title { font-weight:700; margin-bottom:3px; }
+
+    /* ── Resultado con botón preview ──────────────────────────── */
+    #resultBar {
+      margin-top: 16px;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .btn-preview {
+      width: 100%;
+      padding: 10px 16px;
+      background: var(--p4);
+      color: var(--white);
+      border: none;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-preview:hover { background: var(--p4-lt); }
+
+    /* ── Footer ───────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      padding: 18px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-block">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" width="20" height="20">
+        <path d="M3 3h4v18H3zm7 6h4v12h-4zm7-4h4v16h-4z"/>
+      </svg>
+    </div>
+    <div>
+      <h1>Generador · Gráfico 3D Incidencias</h1>
+      <p>Sube el dataset de tu flota y descarga el gráfico interactivo</p>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+
+    <!-- Config: URL del backend -->
+    <div class="config-strip">
+      <label>URL del backend (Render)</label>
+      <div class="url-row">
+        <input type="url" id="backendUrl"
+               value="https://TU-APP.onrender.com"
+               placeholder="https://tu-app.onrender.com" />
+        <button class="btn-ping" onclick="pingServer()">⚡ Activar</button>
+      </div>
+      <div id="pingStatus">Pulsa "Activar" para despertar el servidor antes de subir el archivo.</div>
+    </div>
+
+    <!-- Drop zone -->
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".xlsx,.xls" />
+      <div class="drop-icon">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/>
+        </svg>
+      </div>
+      <p class="drop-title">Arrastra el archivo .xlsx aquí</p>
+      <p class="drop-sub">o haz clic para seleccionarlo</p>
+      <p class="file-name" id="fileName"></p>
+    </div>
+
+    <!-- Requisitos del archivo -->
+    <div class="req-box">
+      El archivo debe contener la hoja <b>Unidad_Subsistema_Mes</b> con las columnas:
+      <b>Unidad, Mes, Organo, Elemento, Subsistema,
+      Incidencias unidad-subsistema por mes,
+      Incidencias P4 (reincidencias mantenimiento)</b>.
+    </div>
+
+    <!-- Botón generar -->
+    <button class="btn-gen" id="btnGen" disabled onclick="generate()">
+      <div class="spinner"></div>
+      <span id="btnText">Generar gráfico</span>
+    </button>
+
+    <!-- Feedback -->
+    <div id="feedback"></div>
+
+    <!-- Botón abrir resultado -->
+    <div id="resultBar">
+      <button class="btn-preview" id="btnPreview">
+        🔍 Abrir gráfico en nueva pestaña
+      </button>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  Stadler Rail · Herramienta interna &nbsp;·&nbsp; Powered by Flask + Plotly WebGL
+</footer>
+
+<script>
+  // ── Estado ───────────────────────────────────────────────────────────────────
+  let selectedFile = null;
+  let lastBlobUrl  = null;
+
+  // ── File input / drag & drop ─────────────────────────────────────────────────
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const fileName  = document.getElementById('fileName');
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) setFile(fileInput.files[0]);
+  });
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f) setFile(f);
+  });
+
+  function setFile(f) {
+    if (!f.name.match(/\.(xlsx|xls)$/i)) {
+      showFeedback('error', 'Formato no válido', 'El archivo debe ser .xlsx o .xls.');
+      return;
+    }
+    selectedFile = f;
+    fileName.textContent = f.name;
+    dropZone.classList.add('has-file');
+    document.getElementById('btnGen').disabled = false;
+    clearFeedback();
+    document.getElementById('resultBar').style.display = 'none';
+  }
+
+  // ── Ping / warm-up ───────────────────────────────────────────────────────────
+  async function pingServer() {
+    const url = backendUrl();
+    if (!url) return;
+    const ps = document.getElementById('pingStatus');
+    ps.className = '';
+    ps.textContent = '⏳ Conectando con el servidor…';
+    try {
+      const r = await fetch(`${url}/health`, { signal: AbortSignal.timeout(60000) });
+      if (r.ok) {
+        ps.className = 'ok';
+        ps.textContent = '✓ Servidor activo y listo.';
+      } else {
+        ps.className = 'err';
+        ps.textContent = `Error ${r.status} al conectar.`;
+      }
+    } catch (e) {
+      ps.className = 'err';
+      ps.textContent = `No se pudo conectar: ${e.message}`;
+    }
+  }
+
+  function backendUrl() {
+    return document.getElementById('backendUrl').value.replace(/\/$/, '').trim();
+  }
+
+  // ── Generar ──────────────────────────────────────────────────────────────────
+  async function generate() {
+    if (!selectedFile) return;
+    const url = backendUrl();
+    if (!url || url.includes('TU-APP')) {
+      showFeedback('error', 'Falta la URL', 'Introduce la URL de tu backend en Render antes de continuar.');
+      return;
+    }
+
+    // UI: estado cargando
+    const btn      = document.getElementById('btnGen');
+    const btnText  = document.getElementById('btnText');
+    btn.disabled   = true;
+    btn.classList.add('loading');
+    btnText.textContent = 'Procesando…';
+    clearFeedback();
+    document.getElementById('resultBar').style.display = 'none';
+    if (lastBlobUrl) { URL.revokeObjectURL(lastBlobUrl); lastBlobUrl = null; }
+
+    showFeedback('info', 'Enviando archivo…',
+      'El servidor puede tardar hasta 60 s en responder si estaba inactivo (Render free tier).');
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      const res = await fetch(`${url}/generate`, {
+        method: 'POST',
+        body: formData,
+        signal: AbortSignal.timeout(120000),   // 2 min por si el cold start es lento
+      });
+
+      if (!res.ok) {
+        // El backend devuelve JSON con campo "error"
+        let msg = `Error HTTP ${res.status}`;
+        try {
+          const j = await res.json();
+          msg = j.error || msg;
+        } catch (_) {}
+        throw new Error(msg);
+      }
+
+      // Extraer nombre de descarga del header Content-Disposition
+      const cd = res.headers.get('Content-Disposition') || '';
+      const match = cd.match(/filename="([^"]+)"/);
+      const downloadName = match ? match[1] : `grafico_3d_${selectedFile.name.replace(/\.[^.]+$/, '')}.html`;
+
+      const blob = await res.blob();
+      lastBlobUrl = URL.createObjectURL(blob);
+
+      // Descarga automática
+      const a = document.createElement('a');
+      a.href = lastBlobUrl;
+      a.download = downloadName;
+      a.click();
+
+      // Feedback éxito
+      showFeedback('success', '✓ Gráfico generado',
+        `El archivo <b>${downloadName}</b> se ha descargado. También puedes abrirlo directamente con el botón de abajo.`);
+
+      // Botón preview
+      const resultBar = document.getElementById('resultBar');
+      resultBar.style.display = 'flex';
+      document.getElementById('btnPreview').onclick = () => window.open(lastBlobUrl, '_blank');
+
+    } catch (err) {
+      showFeedback('error', 'Error al generar el gráfico', err.message
+        + (err.message.includes('timeout') ? ' — Prueba a pulsar "Activar" para despertar el servidor primero.' : ''));
+    } finally {
+      btn.disabled  = false;
+      btn.classList.remove('loading');
+      btnText.textContent = 'Generar gráfico';
+    }
+  }
+
+  // ── Feedback helpers ─────────────────────────────────────────────────────────
+  function showFeedback(type, title, body) {
+    const el = document.getElementById('feedback');
+    el.className = type;
+    el.style.display = 'block';
+    el.innerHTML = `<div class="fb-title">${title}</div>${body}`;
+  }
+  function clearFeedback() {
+    const el = document.getElementById('feedback');
+    el.style.display = 'none';
+    el.innerHTML = '';
+  }
+</script>
+</body>
+</html>
